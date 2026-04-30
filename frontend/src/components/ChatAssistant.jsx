@@ -1,26 +1,14 @@
+// 🔥 FORCE REDEPLOY (hapus nanti kalau sudah normal)
+console.log("CHAT FIX DEPLOYED");
+
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
-import { Send, Plus, Trash2, Paperclip, X, FileText, Image } from "lucide-react";
+import { Send, Plus, Trash2 } from "lucide-react";
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
   : "/api";
-
-const AI_AVATAR =
-  "https://static.prod-images.emergentagent.com/jobs/cd22c020-fb63-4fca-9cbf-fb0e69633132/images/0645387478a63632fbd20a402ce32a6260e6bc4a53ae2688d8b1b3fcbcb41a54.png";
-
-function getFileIcon(file) {
-  if (file.type?.startsWith("image/")) return Image;
-  return FileText;
-}
-
-function formatSize(bytes) {
-  if (!bytes) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function ChatAssistant() {
   const [sessions, setSessions] = useState([]);
@@ -28,10 +16,8 @@ export default function ChatAssistant() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState([]);
 
   const messagesEndRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchSessions();
@@ -49,6 +35,7 @@ export default function ChatAssistant() {
   const fetchSessions = async () => {
     try {
       const res = await axios.get(`${API}/chat/sessions`);
+
       const safe = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
@@ -66,7 +53,7 @@ export default function ChatAssistant() {
     }
   };
 
-  // ✅ SAFE FETCH MESSAGES (FIX UTAMA)
+  // ✅ SAFE FETCH MESSAGES (ANTI ERROR)
   const fetchMessages = async (sessionId) => {
     try {
       const res = await axios.get(`${API}/chat/messages/${sessionId}`);
@@ -107,18 +94,8 @@ export default function ChatAssistant() {
     }
   };
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    const valid = files.filter((f) => f.size <= 10 * 1024 * 1024);
-    setAttachedFiles((prev) => [...prev, ...valid]);
-  };
-
-  const removeAttachment = (i) => {
-    setAttachedFiles((prev) => prev.filter((_, idx) => idx !== i));
-  };
-
   const sendMessage = async () => {
-    if ((!input.trim() && attachedFiles.length === 0) || loading) return;
+    if (!input.trim() || loading) return;
 
     let sessionId = activeSession;
 
@@ -135,13 +112,13 @@ export default function ChatAssistant() {
       id: Date.now().toString(),
     };
 
+    // ✅ FIX: selalu array
     setMessages((prev) => [
       ...(Array.isArray(prev) ? prev : []),
       userMsg,
     ]);
 
     setInput("");
-    setAttachedFiles([]);
     setLoading(true);
 
     try {
@@ -168,8 +145,12 @@ export default function ChatAssistant() {
         <button onClick={createSession}>+ Sesi Baru</button>
 
         {(Array.isArray(sessions) ? sessions : []).map((s) => (
-          <div key={s.id} onClick={() => setActiveSession(s.id)}>
-            {s.title}
+          <div
+            key={s.id}
+            onClick={() => setActiveSession(s.id)}
+            style={{ cursor: "pointer", marginTop: "8px" }}
+          >
+            {s.title || "Tanpa judul"}
           </div>
         ))}
       </div>
@@ -177,14 +158,16 @@ export default function ChatAssistant() {
       {/* CHAT */}
       <div className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto p-4">
+          {/* ✅ FIX ANTI CRASH */}
           {(!Array.isArray(messages) || messages.length === 0) && !loading && (
             <p>Belum ada chat</p>
           )}
 
+          {/* ✅ FIX MAP ERROR */}
           {(Array.isArray(messages) ? messages : []).map((msg, i) => (
-            <div key={msg.id || i}>
-              <b>{msg.role}:</b>
-              <ReactMarkdown>{msg.content || ""}</ReactMarkdown>
+            <div key={msg?.id || i} style={{ marginBottom: "10px" }}>
+              <b>{msg?.role || "unknown"}:</b>
+              <ReactMarkdown>{msg?.content || ""}</ReactMarkdown>
             </div>
           ))}
 

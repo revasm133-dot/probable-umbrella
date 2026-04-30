@@ -34,7 +34,8 @@ Build a personal AI research assistant platform for Reva (Bachelor's thesis stud
 - [x] **Progress Tracker** - Track thesis chapter progress with subtasks, status, and page counts
 - [x] **Export Statistics to CSV** - Download ANOVA/DMRT results as CSV file
 - [x] **Import Data from CSV** - Upload CSV file to import research data
-- [x] All testing passed (100% backend, 100% frontend) - iteration 1 & 2
+- [x] **File Manager** - Upload, download, categorize, search, and delete research files (PDF, DOC, images, etc.)
+- [x] All testing passed (100% backend, 100% frontend) - iteration 1, 2 & 3
 
 ## Prioritized Backlog
 ### P0 (Done)

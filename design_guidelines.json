@@ -1,0 +1,115 @@
+{
+  "theme_and_archetype": {
+    "archetype": "Archetype 1: Organic & Earthy",
+    "theme": "Light",
+    "rationale": "The domain is academic research in Food Science, specifically focused on Gotu Kola leaves (botany/nutrition). A light, earthy theme creates a calm, focused, and trustworthy academic environment, avoiding the cold clinical feel of standard SaaS apps."
+  },
+  "color_palette": {
+    "backgrounds": {
+      "base": "#F9F9F6",
+      "surface": "#FFFFFF",
+      "surface_alt": "#F0F2ED",
+      "sidebar": "#EFF1EB"
+    },
+    "text": {
+      "primary": "#1C1C19",
+      "secondary": "#5C605A",
+      "muted": "#8A9087"
+    },
+    "primary": {
+      "main": "#4A6B46",
+      "hover": "#3C5739",
+      "light": "#E3EBE1",
+      "foreground": "#FFFFFF"
+    },
+    "accent": {
+      "main": "#D4A373",
+      "hover": "#C29263",
+      "light": "#F8ECD9",
+      "foreground": "#1C1C19"
+    },
+    "status": {
+      "success": "#3A7D44",
+      "warning": "#C48A31",
+      "error": "#B23A3A",
+      "info": "#4A6E8C"
+    },
+    "borders": {
+      "default": "#E2E5DE",
+      "focus": "#4A6B46"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Cormorant Garamond",
+      "body": "IBM Plex Sans",
+      "mono": "JetBrains Mono"
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl tracking-tight leading-none font-medium",
+      "h2": "text-2xl sm:text-3xl tracking-tight leading-snug font-medium",
+      "h3": "text-xl sm:text-2xl tracking-tight leading-snug font-medium",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base leading-relaxed",
+      "body_sm": "text-sm leading-relaxed",
+      "label": "text-xs tracking-[0.2em] uppercase font-medium",
+      "mono": "text-sm font-mono"
+    }
+  },
+  "layout_and_spacing": {
+    "spacing_scale": "p-1, p-2, p-4, p-6, p-8, p-12, p-16, p-24",
+    "grid_system": "MODE B: THE 'CONTROL ROOM' GRID (for Dashboards) - grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-6. Density and scanability are prioritized.",
+    "container_rules": "Containers with borders must use internal padding p-6 or p-8.",
+    "border_radius": "Subtle roundness, max 8px (rounded-lg) for cards and inputs to keep the UI feeling sharp and technical.",
+    "shadows": "Ambient diffuse shadows: shadow-sm or shadow-[0_4px_12px_rgba(0,0,0,0.04)] for elevated elements. Avoid heavy drop shadows."
+  },
+  "surface_strategies": {
+    "dashboard_cards": "Flat background (surface), 1px subtle border (border-default), no shadow by default. Hover states bring a slight lift (-translate-y-1) and subtle shadow-lg.",
+    "header_nav": "Crystal Glassmorphism over scrolling content: backdrop-blur-xl bg-[#F9F9F6]/80 with a delicate 1px inner stroke border-b border-[#E2E5DE].",
+    "editor_canvas": "Pure white background, prominent drop shadow to simulate a physical paper on top of the base dashboard background."
+  },
+  "component_instructions": {
+    "buttons": "Primary buttons use #4A6B46 background with white text. Apply transition-transform duration-200 hover:-translate-y-[1px]. Avoid full pill shapes; stick to rounded-md or rounded-lg.",
+    "inputs": "Use Shadcn Input. Background pure white, subtle border. On focus: ring-2 ring-primary/20 border-primary.",
+    "cards": "Use pure HTML/Tailwind for layout bento-boxes, Shadcn for strict data tables. Card-less approaches preferred for data grids. Minimal visual noise.",
+    "charts": "Use Recharts/Shadcn Charts. Use the custom color palette (Primary, Accent, Status) for data visualization series to maintain the Earthy archetype. Avoid defaults.",
+    "chat_interface": "AI Advisor chat should use soft chat bubbles. AI responses use surface_alt background, user responses use primary_light background. Include 'data-testid' for all inputs and send buttons.",
+    "modals_dialogs": "Use Shadcn Dialog. Must have a backdrop-blur overlay."
+  },
+  "motion_and_interactions": {
+    "hover_states": "ALWAYS explicitly set text and background color on hover. e.g., hover:bg-[#3C5739] hover:text-white.",
+    "page_transitions": "Framer motion for subtle fade-in on mount. Initial: opacity-0, y-4. Animate: opacity-100, y-0. Transition: duration 0.4s ease-out.",
+    "list_stagger": "Lists and bento grid items should stagger in on load."
+  },
+  "media_and_assets": {
+    "icons_library": "@phosphor-icons/react (Duotone weight preferred to match the elegant organic theme).",
+    "images": {
+      "ai_advisor_avatar": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/cd22c020-fb63-4fca-9cbf-fb0e69633132/images/0645387478a63632fbd20a402ce32a6260e6bc4a53ae2688d8b1b3fcbcb41a54.png",
+        "description": "Minimalist flat vector avatar of a friendly academic professor (Dosen Pembimbing). Use for chat interface.",
+        "category": "Avatar"
+      },
+      "dashboard_hero_bg": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/cd22c020-fb63-4fca-9cbf-fb0e69633132/images/15bcf053795c909d5adbc21257d67c6b76aadb303809d643383c00077739e2de.png",
+        "description": "Abstract minimalist organic wave background, inspired by centella asiatica leaves. Light warm sand and pale sage green colors. Use for login/onboarding or header background.",
+        "category": "Background"
+      },
+      "botanical_texture": {
+        "url": "https://images.unsplash.com/photo-1777226061916-44f767afa3a7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxib3RhbmljYWwlMjBsZWF2ZXMlMjB0ZXh0dXJlfGVufDB8fHx8MTc3NzU1Mjc0N3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Green leaves texture for abstract branding areas or card imagery if required.",
+        "category": "Texture"
+      },
+      "library_architecture": {
+        "url": "https://images.unsplash.com/photo-1547459671-6d95eed7af1b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwxfHxhY2FkZW1pYyUyMGxpYnJhcnklMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzc3NTUyNzQ2fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Clean, sleek library architecture for academic mood setting (e.g., in an empty state or reference manager).",
+        "category": "Hero/Mood"
+      }
+    }
+  },
+  "domain_specific_instructions": {
+    "language": "All UI elements must be in Bahasa Indonesia (e.g., 'Beranda', 'Kalkulator Statistik', 'Editor Tesis', 'Dosen Pembimbing AI', 'Manajer Referensi').",
+    "thesis_focus": "The dashboard must support data entry and visualization for 'Analisis Fisikokimia Bubur Instan Daun Pegagan'. Include specific placeholder terms in mockups like 'Kadar Air', 'Kadar Abu', 'Serat Kasar', 'Uji Organoleptik'.",
+    "statistical_tools": "ANOVA and DMRT calculators should use a strict, dense table layout for data entry, prioritizing clarity over decoration."
+  },
+  "testing": "All interactive elements MUST have a data-testid attribute in kebab-case (e.g., data-testid='kalkulator-submit-button')."
+}

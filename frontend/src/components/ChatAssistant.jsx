@@ -58,7 +58,13 @@ export default function ChatAssistant() {
   const fetchMessages = async (sessionId) => {
     try {
       const res = await axios.get(`${API}/chat/messages/${sessionId}`);
-      setMessages(res.data);
+    Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+        ? res.data.data
+        : []
+    );
+
     } catch (e) {
       console.error(e);
     }
@@ -199,7 +205,7 @@ export default function ChatAssistant() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-         {(Array.isArray(messages) ? messages : []).map((msg, i) => (
+        {(Array.isArray(messages) ? messages : []).map((msg, i) => (
             <div key={s.id} onClick={() => setActiveSession(s.id)} className="p-2 cursor-pointer">
               {s.title}
             </div>

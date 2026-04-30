@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
-import { Send, Plus, Trash2 } from "lucide-react";
+import { Send, Plus, Trash2, Paperclip, X, FileText, Image } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const AI_AVATAR = "https://static.prod-images.emergentagent.com/jobs/cd22c020-fb63-4fca-9cbf-fb0e69633132/images/0645387478a63632fbd20a402ce32a6260e6bc4a53ae2688d8b1b3fcbcb41a54.png";
+
+function getFileIcon(file) {
+  if (file.type?.startsWith("image/")) return Image;
+  return FileText;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function ChatAssistant() {
   const [sessions, setSessions] = useState([]);
@@ -12,16 +23,15 @@ export default function ChatAssistant() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState([]);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchSessions(); }, []);
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
-
-  useEffect(() => {
-    if (activeSession) {
-      fetchMessages(activeSession);
-    }
+    if (activeSession) fetchMessages(activeSession);
   }, [activeSession]);
 
   useEffect(() => {
@@ -74,22 +84,82 @@ export default function ChatAssistant() {
     }
   };
 
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter(f => f.size <= 10 * 1024 * 1024);
+    setAttachedFiles(prev => [...prev, ...validFiles]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (index) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
-    if (!activeSession) {
-      await createSession();
-      return;
+    if ((!input.trim() && attachedFiles.length === 0) || loading) return;
+
+    // If no active session, create one first
+    let sessionId = activeSession;
+    if (!sessionId) {
+      try {
+        const res = await axios.post(`${API}/chat/sessions`);
+        setSessions([res.data, ...sessions]);
+        setActiveSession(res.data.id);
+        sessionId = res.data.id;
+      } catch (e) {
+        console.error(e);
+        return;
+      }
     }
 
-    const userMsg = { role: "user", content: input, id: Date.now().toString() };
+    // Build the message content
+    let messageText = input.trim();
+    const fileNames = attachedFiles.map(f => f.name);
+
+    // Show user message in UI
+    const userMsgContent = fileNames.length > 0
+      ? `${messageText}${messageText ? "\n\n" : ""}[Lampiran: ${fileNames.join(", ")}]`
+      : messageText;
+
+    const userMsg = { role: "user", content: userMsgContent, id: Date.now().toString(), attachments: fileNames };
     setMessages((prev) => [...prev, userMsg]);
+    
+    const currentInput = input;
+    const currentFiles = [...attachedFiles];
     setInput("");
+    setAttachedFiles([]);
     setLoading(true);
 
     try {
+      // Upload files first if any
+      let uploadedFileInfos = [];
+      for (const file of currentFiles) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("category", "umum");
+        formData.append("notes", `Dilampirkan di chat sesi`);
+        try {
+          const uploadRes = await axios.post(`${API}/files/upload`, formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+          uploadedFileInfos.push(uploadRes.data);
+        } catch (err) {
+          console.error(`Upload failed for ${file.name}`, err);
+        }
+      }
+
+      // Build chat message with file context
+      let chatMessage = currentInput;
+      if (uploadedFileInfos.length > 0) {
+        const fileDescriptions = uploadedFileInfos.map(f =>
+          `File "${f.original_name}" (${f.content_type}, ${f.size} bytes)`
+        ).join("; ");
+        chatMessage = `${currentInput}\n\n[File yang dilampirkan: ${fileDescriptions}]`;
+      }
+
       const res = await axios.post(`${API}/chat/send`, {
-        session_id: activeSession,
-        message: input,
+        session_id: sessionId,
+        message: chatMessage,
       });
       setMessages((prev) => [...prev, res.data]);
       fetchSessions();
@@ -171,8 +241,8 @@ export default function ChatAssistant() {
                 Dosen Pembimbing AI
               </h3>
               <p className="text-sm text-[#8A9087] mt-2 max-w-md">
-                Tanyakan apa saja tentang penelitian skripsi Anda. Saya siap membantu dengan metodologi, 
-                analisis data, penulisan, atau tinjauan pustaka.
+                Tanyakan apa saja tentang penelitian skripsi Anda. Anda juga bisa melampirkan file
+                (PDF, gambar, dokumen) untuk didiskusikan.
               </p>
             </div>
           )}
@@ -215,15 +285,63 @@ export default function ChatAssistant() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Attachments Preview */}
+        {attachedFiles.length > 0 && (
+          <div className="px-4 pt-3 border-t border-[#E2E5DE] bg-[#F9F9F6]" data-testid="attachments-preview">
+            <div className="flex flex-wrap gap-2 max-w-3xl mx-auto">
+              {attachedFiles.map((file, idx) => {
+                const IconComp = getFileIcon(file);
+                return (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white border border-[#E2E5DE] text-xs"
+                    data-testid={`attachment-${idx}`}
+                  >
+                    <IconComp className="w-3.5 h-3.5 text-[#4A6B46]" />
+                    <span className="text-[#1C1C19] max-w-[120px] truncate">{file.name}</span>
+                    <span className="text-[#8A9087]">({formatSize(file.size)})</span>
+                    <button
+                      onClick={() => removeAttachment(idx)}
+                      className="ml-1 text-[#8A9087] hover:text-red-500 transition-colors"
+                      data-testid={`remove-attachment-${idx}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Input */}
         <div className="p-4 border-t border-[#E2E5DE] bg-white">
-          <div className="flex items-end gap-3 max-w-3xl mx-auto">
+          <div className="flex items-end gap-2 max-w-3xl mx-auto">
+            {/* File Attach Button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.ppt,.pptx"
+              onChange={handleFileSelect}
+              className="hidden"
+              data-testid="chat-file-input"
+            />
+            <button
+              data-testid="chat-attach-button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-3 rounded-lg border border-[#E2E5DE] text-[#5C605A] hover:bg-[#F0F2ED] hover:text-[#4A6B46] transition-colors"
+              title="Lampirkan file"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
+
             <textarea
               data-testid="chat-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ketik pertanyaan tentang penelitian Anda..."
+              placeholder="Ketik pertanyaan atau lampirkan file..."
               rows={1}
               className="flex-1 resize-none rounded-lg border border-[#E2E5DE] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6B46]/20 focus:border-[#4A6B46] bg-white"
               style={{ minHeight: "44px", maxHeight: "120px" }}
@@ -231,7 +349,7 @@ export default function ChatAssistant() {
             <button
               data-testid="chat-send-button"
               onClick={sendMessage}
-              disabled={!input.trim() || loading}
+              disabled={(!input.trim() && attachedFiles.length === 0) || loading}
               className="px-4 py-3 rounded-lg bg-[#4A6B46] text-white hover:bg-[#3C5739] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />

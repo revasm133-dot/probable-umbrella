@@ -199,7 +199,7 @@ export default function ChatAssistant() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {sessions.map((s) => (
+         {(Array.isArray(messages) ? messages : []).map((msg, i) => (
             <div key={s.id} onClick={() => setActiveSession(s.id)} className="p-2 cursor-pointer">
               {s.title}
             </div>

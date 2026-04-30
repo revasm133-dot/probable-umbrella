@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+  "axios": "^1.8.4",
+  "react": "^18.2.0",
+  "react-dom": "^18.2.0",
     "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-alert-dialog": "^1.1.11",
@@ -70,7 +73,8 @@
   "engines": {
     "node": "18.x"
   },
-  "overrides": {
-    "ajv": "6.12.6"
+ "overrides": {
+  "ajv": "6.12.6",
+  "ajv-keywords": "3.5.2"
   }
 }

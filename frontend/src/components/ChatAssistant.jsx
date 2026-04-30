@@ -3,8 +3,12 @@ import axios from "axios";
 import ReactMarkdown from "react-markdown";
 import { Send, Plus, Trash2, Paperclip, X, FileText, Image } from "lucide-react";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const AI_AVATAR = "https://static.prod-images.emergentagent.com/jobs/cd22c020-fb63-4fca-9cbf-fb0e69633132/images/0645387478a63632fbd20a402ce32a6260e6bc4a53ae2688d8b1b3fcbcb41a54.png";
+const API = process.env.REACT_APP_BACKEND_URL
+  ? `${process.env.REACT_APP_BACKEND_URL}/api`
+  : "/api";
+
+const AI_AVATAR =
+  "https://static.prod-images.emergentagent.com/jobs/cd22c020-fb63-4fca-9cbf-fb0e69633132/images/0645387478a63632fbd20a402ce32a6260e6bc4a53ae2688d8b1b3fcbcb41a54.png";
 
 function getFileIcon(file) {
   if (file.type?.startsWith("image/")) return Image;
@@ -12,6 +16,7 @@ function getFileIcon(file) {
 }
 
 function formatSize(bytes) {
+  if (!bytes) return "0 B";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -28,45 +33,54 @@ export default function ChatAssistant() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // ✅ FIX: tanpa eslint-disable
   useEffect(() => {
     fetchSessions();
   }, []);
 
   useEffect(() => {
-    if (activeSession) {
-      fetchMessages(activeSession);
-    }
+    if (activeSession) fetchMessages(activeSession);
   }, [activeSession]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // ✅ SAFE FETCH SESSIONS
   const fetchSessions = async () => {
     try {
       const res = await axios.get(`${API}/chat/sessions`);
-      setSessions(res.data);
-      if (res.data.length > 0 && !activeSession) {
-        setActiveSession(res.data[0].id);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchMessages = async (sessionId) => {
-    try {
-      const res = await axios.get(`${API}/chat/messages/${sessionId}`);
-    Array.isArray(res.data)
+      const safe = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
         ? res.data.data
-        : []
-    );
+        : [];
 
+      setSessions(safe);
+
+      if (safe.length > 0 && !activeSession) {
+        setActiveSession(safe[0].id);
+      }
     } catch (e) {
       console.error(e);
+      setSessions([]);
+    }
+  };
+
+  // ✅ SAFE FETCH MESSAGES (FIX UTAMA)
+  const fetchMessages = async (sessionId) => {
+    try {
+      const res = await axios.get(`${API}/chat/messages/${sessionId}`);
+
+      const safeMessages = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
+
+      setMessages(safeMessages);
+    } catch (e) {
+      console.error(e);
+      setMessages([]);
     }
   };
 
@@ -86,25 +100,21 @@ export default function ChatAssistant() {
       await axios.delete(`${API}/chat/sessions/${sessionId}`);
       const updated = sessions.filter((s) => s.id !== sessionId);
       setSessions(updated);
-
-      if (activeSession === sessionId) {
-        setActiveSession(updated.length > 0 ? updated[0].id : null);
-        setMessages([]);
-      }
+      setActiveSession(updated[0]?.id || null);
+      setMessages([]);
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    const validFiles = files.filter((f) => f.size <= 10 * 1024 * 1024);
-    setAttachedFiles((prev) => [...prev, ...validFiles]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    const files = Array.from(e.target.files || []);
+    const valid = files.filter((f) => f.size <= 10 * 1024 * 1024);
+    setAttachedFiles((prev) => [...prev, ...valid]);
   };
 
-  const removeAttachment = (index) => {
-    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeAttachment = (i) => {
+    setAttachedFiles((prev) => prev.filter((_, idx) => idx !== i));
   };
 
   const sendMessage = async () => {
@@ -113,128 +123,84 @@ export default function ChatAssistant() {
     let sessionId = activeSession;
 
     if (!sessionId) {
-      try {
-        const res = await axios.post(`${API}/chat/sessions`);
-        setSessions((prev) => [res.data, ...prev]);
-        setActiveSession(res.data.id);
-        sessionId = res.data.id;
-      } catch (e) {
-        console.error(e);
-        return;
-      }
+      const res = await axios.post(`${API}/chat/sessions`);
+      setSessions((prev) => [res.data, ...prev]);
+      setActiveSession(res.data.id);
+      sessionId = res.data.id;
     }
-
-    const fileNames = attachedFiles.map((f) => f.name);
 
     const userMsg = {
       role: "user",
       content: input,
       id: Date.now().toString(),
-      attachments: fileNames,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
-
-    const currentInput = input;
-    const currentFiles = [...attachedFiles];
+    setMessages((prev) => [
+      ...(Array.isArray(prev) ? prev : []),
+      userMsg,
+    ]);
 
     setInput("");
     setAttachedFiles([]);
     setLoading(true);
 
     try {
-      let uploadedFileInfos = [];
-
-      for (const file of currentFiles) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        try {
-          const uploadRes = await axios.post(`${API}/files/upload`, formData);
-          uploadedFileInfos.push(uploadRes.data);
-        } catch (err) {
-          console.error(err);
-        }
-      }
-
-      let chatMessage = currentInput;
-
-      if (uploadedFileInfos.length > 0) {
-        const fileDescriptions = uploadedFileInfos
-          .map((f) => `File "${f.original_name}"`)
-          .join(", ");
-
-        chatMessage += `\n\n[File: ${fileDescriptions}]`;
-      }
-
       const res = await axios.post(`${API}/chat/send`, {
         session_id: sessionId,
-        message: chatMessage,
+        message: input,
       });
 
-      setMessages((prev) => [...prev, res.data]);
-      fetchSessions();
-    } catch (e) {
       setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Maaf, terjadi kesalahan.",
-          id: "error",
-        },
+        ...(Array.isArray(prev) ? prev : []),
+        res.data,
       ]);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
   return (
     <div className="flex h-screen">
-      <div className="w-64 border-r flex flex-col">
-        <div className="p-4">
-          <button onClick={createSession} className="w-full bg-green-700 text-white p-2 rounded">
-            <Plus /> Sesi Baru
-          </button>
-        </div>
+      {/* SIDEBAR */}
+      <div className="w-64 border-r p-3">
+        <button onClick={createSession}>+ Sesi Baru</button>
 
-        <div className="flex-1 overflow-y-auto">
-        {(Array.isArray(messages) ? messages : []).map((msg, i) => (
-            <div key={s.id} onClick={() => setActiveSession(s.id)} className="p-2 cursor-pointer">
-              {s.title}
-            </div>
-          ))}
-        </div>
+        {(Array.isArray(sessions) ? sessions : []).map((s) => (
+          <div key={s.id} onClick={() => setActiveSession(s.id)}>
+            {s.title}
+          </div>
+        ))}
       </div>
 
+      {/* CHAT */}
       <div className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto p-4">
-          {messages.map((msg, i) => (
-            <div key={i}>
-              {msg.role === "assistant" ? (
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
-              ) : (
-                <p>{msg.content}</p>
-              )}
+          {(!Array.isArray(messages) || messages.length === 0) && !loading && (
+            <p>Belum ada chat</p>
+          )}
+
+          {(Array.isArray(messages) ? messages : []).map((msg, i) => (
+            <div key={msg.id || i}>
+              <b>{msg.role}:</b>
+              <ReactMarkdown>{msg.content || ""}</ReactMarkdown>
             </div>
           ))}
+
+          {loading && <p>Loading...</p>}
+          <div ref={messagesEndRef} />
         </div>
 
+        {/* INPUT */}
         <div className="p-4 flex gap-2">
-          <textarea
+          <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 border p-2"
+            className="border flex-1"
           />
-          <button onClick={sendMessage} className="bg-green-700 text-white p-2 rounded">
-            <Send />
+          <button onClick={sendMessage}>
+            <Send size={16} />
           </button>
         </div>
       </div>

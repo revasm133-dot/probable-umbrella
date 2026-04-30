@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import "@/App.css";
-import Sidebar from "@/components/Sidebar";
-import Dashboard from "@/components/Dashboard";
-import ChatAssistant from "@/components/ChatAssistant";
-import StatisticsCalculator from "@/components/StatisticsCalculator";
-import WritingEditor from "@/components/WritingEditor";
-import ReferenceManager from "@/components/ReferenceManager";
-import ResearchData from "@/components/ResearchData";
-import ProgressTracker from "@/components/ProgressTracker";
-import FileManager from "@/components/FileManager";
+import "./App.css";
+
+import Sidebar from "./components/Sidebar";
+import Dashboard from "./components/Dashboard";
+import ChatAssistant from "./components/ChatAssistant";
+import StatisticsCalculator from "./components/StatisticsCalculator";
+import WritingEditor from "./components/WritingEditor";
+import ReferenceManager from "./components/ReferenceManager";
+import ResearchData from "./components/ResearchData";
+import ProgressTracker from "./components/ProgressTracker";
+import FileManager from "./components/FileManager";
 
 function App() {
   const [activePage, setActivePage] = useState("dashboard");

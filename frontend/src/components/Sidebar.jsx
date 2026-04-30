@@ -7,7 +7,8 @@ import {
   BookOpen,
   Database,
   Leaf,
-  ListChecks
+  ListChecks,
+  FolderOpen
 } from "lucide-react";
 
 const menuItems = [
@@ -18,6 +19,7 @@ const menuItems = [
   { id: "writing", label: "Editor Penulisan", icon: PenTool },
   { id: "references", label: "Manajer Referensi", icon: BookOpen },
   { id: "data", label: "Data Penelitian", icon: Database },
+  { id: "files", label: "Manajer File", icon: FolderOpen },
 ];
 
 export default function Sidebar({ activePage, setActivePage }) {

@@ -8,6 +8,7 @@ import WritingEditor from "@/components/WritingEditor";
 import ReferenceManager from "@/components/ReferenceManager";
 import ResearchData from "@/components/ResearchData";
 import ProgressTracker from "@/components/ProgressTracker";
+import FileManager from "@/components/FileManager";
 
 function App() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -28,6 +29,8 @@ function App() {
         return <ResearchData />;
       case "progress":
         return <ProgressTracker />;
+      case "files":
+        return <FileManager />;
       default:
         return <Dashboard onNavigate={setActivePage} />;
     }

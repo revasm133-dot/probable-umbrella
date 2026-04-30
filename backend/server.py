@@ -1,5 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -16,6 +16,8 @@ from scipy import stats
 import json
 import csv
 import io
+import base64
+import mimetypes
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -724,6 +726,134 @@ async def import_research_data_csv(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"CSV import error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Gagal mengimpor CSV: {str(e)}")
+
+# ===================== FILE MANAGER =====================
+
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+ALLOWED_EXTENSIONS = {
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".csv", ".txt", ".md", ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    ".zip", ".rar"
+}
+
+class FileMetadata(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    original_name: str
+    size: int
+    content_type: str
+    category: str = "umum"
+    notes: str = ""
+    uploaded_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+@api_router.post("/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    category: str = Form(default="umum"),
+    notes: str = Form(default="")
+):
+    """Upload a file. Max 10MB. Returns file metadata."""
+    # Validate extension
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Ekstensi file '{ext}' tidak didukung. Gunakan: {', '.join(sorted(ALLOWED_EXTENSIONS))}")
+
+    # Read file
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="Ukuran file melebihi batas 10MB")
+
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    stored_name = f"{file_id}{ext}"
+    file_path = UPLOAD_DIR / stored_name
+
+    # Save to disk
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    # Save metadata to DB
+    metadata = FileMetadata(
+        id=file_id,
+        filename=stored_name,
+        original_name=file.filename,
+        size=len(content),
+        content_type=file.content_type or mimetypes.guess_type(file.filename)[0] or "application/octet-stream",
+        category=category,
+        notes=notes
+    )
+    await db.files.insert_one(metadata.model_dump())
+
+    return metadata.model_dump()
+
+@api_router.get("/files", response_model=List[FileMetadata])
+async def list_files(category: Optional[str] = None):
+    """List all uploaded files, optionally filtered by category."""
+    query = {}
+    if category and category != "semua":
+        query["category"] = category
+    files = await db.files.find(query, {"_id": 0}).sort("uploaded_at", -1).to_list(200)
+    return files
+
+@api_router.get("/files/{file_id}/download")
+async def download_file(file_id: str):
+    """Download a file by ID."""
+    meta = await db.files.find_one({"id": file_id}, {"_id": 0})
+    if not meta:
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+
+    file_path = UPLOAD_DIR / meta["filename"]
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File fisik tidak ditemukan di server")
+
+    with open(file_path, "rb") as f:
+        content = f.read()
+
+    return Response(
+        content=content,
+        media_type=meta["content_type"],
+        headers={"Content-Disposition": f'attachment; filename="{meta["original_name"]}"'}
+    )
+
+@api_router.delete("/files/{file_id}")
+async def delete_file(file_id: str):
+    """Delete a file by ID."""
+    meta = await db.files.find_one({"id": file_id}, {"_id": 0})
+    if not meta:
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+
+    # Delete from disk
+    file_path = UPLOAD_DIR / meta["filename"]
+    if file_path.exists():
+        file_path.unlink()
+
+    # Delete from DB
+    await db.files.delete_one({"id": file_id})
+    return {"status": "deleted"}
+
+@api_router.put("/files/{file_id}")
+async def update_file_metadata(file_id: str, category: str = Form(default=None), notes: str = Form(default=None)):
+    """Update file category or notes."""
+    update_data = {}
+    if category is not None:
+        update_data["category"] = category
+    if notes is not None:
+        update_data["notes"] = notes
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Tidak ada data yang diupdate")
+
+    result = await db.files.update_one({"id": file_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+
+    updated = await db.files.find_one({"id": file_id}, {"_id": 0})
+    return updated
 
 # Include the router
 app.include_router(api_router)

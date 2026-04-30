@@ -1,52 +1,41 @@
-import { useEffect } from "react";
+import React, { useState } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import Sidebar from "@/components/Sidebar";
+import Dashboard from "@/components/Dashboard";
+import ChatAssistant from "@/components/ChatAssistant";
+import StatisticsCalculator from "@/components/StatisticsCalculator";
+import WritingEditor from "@/components/WritingEditor";
+import ReferenceManager from "@/components/ReferenceManager";
+import ResearchData from "@/components/ResearchData";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+function App() {
+  const [activePage, setActivePage] = useState("dashboard");
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
+  const renderPage = () => {
+    switch (activePage) {
+      case "dashboard":
+        return <Dashboard onNavigate={setActivePage} />;
+      case "chat":
+        return <ChatAssistant />;
+      case "statistics":
+        return <StatisticsCalculator />;
+      case "writing":
+        return <WritingEditor />;
+      case "references":
+        return <ReferenceManager />;
+      case "data":
+        return <ResearchData />;
+      default:
+        return <Dashboard onNavigate={setActivePage} />;
     }
   };
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <div className="flex h-screen overflow-hidden" data-testid="app-container">
+      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      <main className="flex-1 overflow-y-auto">
+        {renderPage()}
+      </main>
     </div>
   );
 }

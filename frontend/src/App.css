@@ -1,34 +1,31 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* App-level custom styles */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+    font-family: 'Cormorant Garamond', serif;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.markdown-content p {
+    margin-bottom: 0.75em;
+    line-height: 1.7;
 }
-
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.markdown-content ul, .markdown-content ol {
+    padding-left: 1.5em;
+    margin-bottom: 0.75em;
 }
-
-.App-link {
-    color: #61dafb;
+.markdown-content li {
+    margin-bottom: 0.25em;
 }
-
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.markdown-content code {
+    background: #F0F2ED;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+.markdown-content blockquote {
+    border-left: 3px solid #4A6B46;
+    padding-left: 1em;
+    color: #5C605A;
+    margin: 1em 0;
 }

@@ -58,6 +58,7 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
+    "postinstall": "npm install ajv@6.12.6 ajv-keywords@3.5.2",
     "test": "craco test"
   },
   "devDependencies": {
@@ -69,9 +70,5 @@
   },
   "engines": {
     "node": "24.x"
-  },
-  "overrides": {
-    "ajv": "6.12.6",
-    "ajv-keywords": "3.5.2"
   }
 }

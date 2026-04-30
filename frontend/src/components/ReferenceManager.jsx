@@ -5,7 +5,15 @@ import { Plus, Trash2, BookOpen, Search } from "lucide-react";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function ReferenceManager() {
-  const [references, setReferences] = useState([]);
+const fetchReferences = async () => {
+  try {
+    const res = await axios.get(`${API}/references`);
+    setReferences(Array.isArray(res.data) ? res.data : res.data.data ?? []);
+  } catch (e) {
+    console.error(e);
+    setReferences([]);
+  }
+};
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({
@@ -46,7 +54,7 @@ export default function ReferenceManager() {
     }
   };
 
-  const filtered = references.filter(
+ const filtered = (Array.isArray(references) ? references : []).filter(...)
     (r) =>
       r.title.toLowerCase().includes(search.toLowerCase()) ||
       r.authors.toLowerCase().includes(search.toLowerCase()) ||

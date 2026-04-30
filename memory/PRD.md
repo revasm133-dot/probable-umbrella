@@ -23,7 +23,7 @@ Build a personal AI research assistant platform for Reva (Bachelor's thesis stud
 
 ## What's Been Implemented (Jan 2026)
 - [x] Full backend with all endpoints (chat, statistics, writing, references, research-data, templates)
-- [x] Full frontend with sidebar navigation and 6 pages
+- [x] Full frontend with sidebar navigation and 7 pages
 - [x] Claude Opus 4-6 integration via emergentintegrations
 - [x] ANOVA + DMRT statistical calculator with visualization (Recharts)
 - [x] Writing assistant (4 modes: paraphrase, formal, review, suggest)
@@ -31,26 +31,30 @@ Build a personal AI research assistant platform for Reva (Bachelor's thesis stud
 - [x] Research data with bar chart visualization
 - [x] Academic writing templates for thesis chapters
 - [x] Earthy/organic theme (Cormorant Garamond + IBM Plex Sans)
-- [x] All testing passed (100% backend, 100% frontend)
+- [x] **Progress Tracker** - Track thesis chapter progress with subtasks, status, and page counts
+- [x] **Export Statistics to CSV** - Download ANOVA/DMRT results as CSV file
+- [x] **Import Data from CSV** - Upload CSV file to import research data
+- [x] All testing passed (100% backend, 100% frontend) - iteration 1 & 2
 
 ## Prioritized Backlog
 ### P0 (Done)
-- All 6 core features implemented and tested
+- All 7 core features implemented and tested
+- Progress tracker with 5 thesis chapters
+- CSV export/import functionality
 
 ### P1 (Next)
-- Export statistics results to CSV/Excel
 - Citation format generator (APA, Vancouver)
 - PDF export for writing editor output
-- Data import from CSV/Excel
+- Literature search integration
 
 ### P2 (Future)
-- Literature search integration (Google Scholar)
-- Thesis progress tracker/milestones
+- Google Scholar integration
 - Auto-save drafts for writing editor
 - Comparison charts between parameters
 - Report generation (auto-combine all analysis results)
+- Thesis word count tracker
 
 ## Next Tasks
-1. Add export functionality (CSV/PDF)
-2. Citation formatter
-3. Progress tracking for thesis chapters
+1. Citation formatter (APA/Vancouver)
+2. PDF export for results
+3. Literature search integration

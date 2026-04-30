@@ -7,6 +7,7 @@ import StatisticsCalculator from "@/components/StatisticsCalculator";
 import WritingEditor from "@/components/WritingEditor";
 import ReferenceManager from "@/components/ReferenceManager";
 import ResearchData from "@/components/ResearchData";
+import ProgressTracker from "@/components/ProgressTracker";
 
 function App() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -25,6 +26,8 @@ function App() {
         return <ReferenceManager />;
       case "data":
         return <ResearchData />;
+      case "progress":
+        return <ProgressTracker />;
       default:
         return <Dashboard onNavigate={setActivePage} />;
     }

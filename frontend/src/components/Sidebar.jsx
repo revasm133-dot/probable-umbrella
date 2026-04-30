@@ -6,12 +6,14 @@ import {
   PenTool,
   BookOpen,
   Database,
-  Leaf
+  Leaf,
+  ListChecks
 } from "lucide-react";
 
 const menuItems = [
   { id: "dashboard", label: "Beranda", icon: LayoutDashboard },
   { id: "chat", label: "Dosen Pembimbing AI", icon: MessageCircle },
+  { id: "progress", label: "Progress Skripsi", icon: ListChecks },
   { id: "statistics", label: "Kalkulator Statistik", icon: Calculator },
   { id: "writing", label: "Editor Penulisan", icon: PenTool },
   { id: "references", label: "Manajer Referensi", icon: BookOpen },

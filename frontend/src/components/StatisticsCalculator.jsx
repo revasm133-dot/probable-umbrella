@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { Calculator, Plus, Trash2, BarChart3 } from "lucide-react";
+import { Calculator, Plus, Trash2, BarChart3, Download } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -82,6 +82,31 @@ export default function StatisticsCalculator() {
         std: stats.std,
       }))
     : [];
+
+  const exportCSV = async () => {
+    const data = {};
+    for (const [key, values] of Object.entries(groups)) {
+      const nums = values.map((v) => parseFloat(v)).filter((n) => !isNaN(n));
+      if (nums.length >= 2) data[key] = nums;
+    }
+    try {
+      const response = await axios.post(`${API}/statistics/export-csv`, {
+        data,
+        parameter_name: parameterName || "Parameter",
+        alpha,
+      }, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `statistik_${(parameterName || "parameter").replace(/ /g, "_")}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export error:", e);
+    }
+  };
 
   return (
     <div className="p-8 max-w-5xl mx-auto" data-testid="statistics-page">
@@ -180,15 +205,27 @@ export default function StatisticsCalculator() {
           </div>
         )}
 
-        <button
-          data-testid="calculate-button"
-          onClick={calculate}
-          disabled={loading}
-          className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-md bg-[#4A6B46] text-white text-sm font-medium hover:bg-[#3C5739] disabled:opacity-50 transition-all hover:-translate-y-[1px]"
-        >
-          <Calculator className="w-4 h-4" />
-          {loading ? "Menghitung..." : "Hitung ANOVA & DMRT"}
-        </button>
+        <div className="flex items-center gap-3 mt-6">
+          <button
+            data-testid="calculate-button"
+            onClick={calculate}
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-md bg-[#4A6B46] text-white text-sm font-medium hover:bg-[#3C5739] disabled:opacity-50 transition-all hover:-translate-y-[1px]"
+          >
+            <Calculator className="w-4 h-4" />
+            {loading ? "Menghitung..." : "Hitung ANOVA & DMRT"}
+          </button>
+          {result && (
+            <button
+              data-testid="export-csv-button"
+              onClick={exportCSV}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-md border border-[#E2E5DE] text-sm text-[#5C605A] hover:bg-[#F0F2ED] transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Results */}

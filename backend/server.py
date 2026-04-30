@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -13,6 +14,8 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 import numpy as np
 from scipy import stats
 import json
+import csv
+import io
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -476,6 +479,251 @@ async def get_writing_templates():
         }
     ]
     return templates
+
+# ===================== PROGRESS TRACKER =====================
+
+class ChapterProgressCreate(BaseModel):
+    chapter_id: str
+    title: str
+    target_pages: int = 0
+    subtasks: List[Dict[str, Any]] = []  # [{"title": "...", "completed": false}]
+
+class ChapterProgress(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    chapter_id: str
+    title: str
+    target_pages: int = 0
+    current_pages: int = 0
+    status: str = "belum_mulai"  # belum_mulai, sedang_dikerjakan, revisi, selesai
+    subtasks: List[Dict[str, Any]] = []
+    notes: str = ""
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ChapterProgressUpdate(BaseModel):
+    title: Optional[str] = None
+    target_pages: Optional[int] = None
+    current_pages: Optional[int] = None
+    status: Optional[str] = None
+    subtasks: Optional[List[Dict[str, Any]]] = None
+    notes: Optional[str] = None
+
+@api_router.post("/progress", response_model=ChapterProgress)
+async def create_chapter_progress(input: ChapterProgressCreate):
+    chapter = ChapterProgress(**input.model_dump())
+    await db.progress.insert_one(chapter.model_dump())
+    return chapter
+
+@api_router.get("/progress", response_model=List[ChapterProgress])
+async def get_all_progress():
+    chapters = await db.progress.find({}, {"_id": 0}).sort("chapter_id", 1).to_list(50)
+    return chapters
+
+@api_router.put("/progress/{chapter_db_id}", response_model=ChapterProgress)
+async def update_chapter_progress(chapter_db_id: str, input: ChapterProgressUpdate):
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.progress.update_one({"id": chapter_db_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Bab tidak ditemukan")
+    updated = await db.progress.find_one({"id": chapter_db_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/progress/{chapter_db_id}")
+async def delete_chapter_progress(chapter_db_id: str):
+    await db.progress.delete_one({"id": chapter_db_id})
+    return {"status": "deleted"}
+
+@api_router.post("/progress/seed")
+async def seed_progress():
+    """Seed default thesis chapters if none exist"""
+    existing = await db.progress.count_documents({})
+    if existing > 0:
+        return {"status": "already_seeded", "count": existing}
+    
+    default_chapters = [
+        {"chapter_id": "bab-1", "title": "Bab I - Pendahuluan", "target_pages": 8, "subtasks": [
+            {"title": "Latar Belakang", "completed": False},
+            {"title": "Rumusan Masalah", "completed": False},
+            {"title": "Tujuan Penelitian", "completed": False},
+            {"title": "Manfaat Penelitian", "completed": False},
+        ]},
+        {"chapter_id": "bab-2", "title": "Bab II - Tinjauan Pustaka", "target_pages": 20, "subtasks": [
+            {"title": "Pangan Darurat Bencana", "completed": False},
+            {"title": "Bubur Instan", "completed": False},
+            {"title": "Centella asiatica (Pegagan)", "completed": False},
+            {"title": "Analisis Fisikokimia", "completed": False},
+            {"title": "Uji Organoleptik", "completed": False},
+            {"title": "Kerangka Pemikiran", "completed": False},
+        ]},
+        {"chapter_id": "bab-3", "title": "Bab III - Metodologi Penelitian", "target_pages": 12, "subtasks": [
+            {"title": "Waktu dan Tempat", "completed": False},
+            {"title": "Bahan dan Alat", "completed": False},
+            {"title": "Rancangan Penelitian (RCT)", "completed": False},
+            {"title": "Prosedur Penelitian", "completed": False},
+            {"title": "Parameter Pengamatan", "completed": False},
+            {"title": "Analisis Data", "completed": False},
+        ]},
+        {"chapter_id": "bab-4", "title": "Bab IV - Hasil dan Pembahasan", "target_pages": 25, "subtasks": [
+            {"title": "Analisis Proksimat", "completed": False},
+            {"title": "Aktivitas Air (Aw)", "completed": False},
+            {"title": "Kapasitas Rehidrasi", "completed": False},
+            {"title": "Uji Organoleptik", "completed": False},
+            {"title": "Pembahasan Umum", "completed": False},
+        ]},
+        {"chapter_id": "bab-5", "title": "Bab V - Kesimpulan dan Saran", "target_pages": 3, "subtasks": [
+            {"title": "Kesimpulan", "completed": False},
+            {"title": "Saran", "completed": False},
+        ]},
+    ]
+    
+    for ch in default_chapters:
+        chapter = ChapterProgress(**ch)
+        await db.progress.insert_one(chapter.model_dump())
+    
+    return {"status": "seeded", "count": len(default_chapters)}
+
+# ===================== EXPORT STATISTICS TO CSV =====================
+
+@api_router.post("/statistics/export-csv")
+async def export_statistics_csv(input: StatisticalInput):
+    """Export statistics calculation result as CSV"""
+    try:
+        groups = input.data
+        group_values = list(groups.values())
+
+        # Calculate
+        descriptive = {}
+        for name, values in groups.items():
+            arr = np.array(values, dtype=float)
+            descriptive[name] = {
+                "mean": round(float(np.mean(arr)), 4),
+                "std": round(float(np.std(arr, ddof=1)), 4),
+                "min": round(float(np.min(arr)), 4),
+                "max": round(float(np.max(arr)), 4),
+                "n": len(values)
+            }
+
+        f_stat, p_value = stats.f_oneway(*group_values)
+        significant = bool(p_value < input.alpha)
+
+        # Build CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        writer.writerow([f"Hasil Analisis Statistik - {input.parameter_name}"])
+        writer.writerow([f"Tingkat Signifikansi (Alpha): {input.alpha}"])
+        writer.writerow([])
+
+        # Raw data
+        writer.writerow(["DATA MENTAH"])
+        max_len = max(len(v) for v in groups.values())
+        header_row = ["Ulangan"] + list(groups.keys())
+        writer.writerow(header_row)
+        for i in range(max_len):
+            row = [i + 1]
+            for vals in groups.values():
+                row.append(vals[i] if i < len(vals) else "")
+            writer.writerow(row)
+        writer.writerow([])
+
+        # Descriptive
+        writer.writerow(["STATISTIK DESKRIPTIF"])
+        writer.writerow(["Perlakuan", "n", "Rata-rata", "Std. Deviasi", "Min", "Max"])
+        for name, s in descriptive.items():
+            writer.writerow([name, s["n"], s["mean"], s["std"], s["min"], s["max"]])
+        writer.writerow([])
+
+        # ANOVA
+        writer.writerow(["HASIL ANOVA"])
+        writer.writerow(["F-Statistik", "P-Value", "Signifikan"])
+        writer.writerow([round(float(f_stat), 4), round(float(p_value), 6), "Ya" if significant else "Tidak"])
+        writer.writerow([])
+
+        # DMRT
+        if significant:
+            dmrt = perform_dmrt(groups, input.alpha)
+            writer.writerow(["HASIL UJI DMRT"])
+            writer.writerow(["Perlakuan", "Rata-rata", "Notasi DMRT"])
+            for item in dmrt["ranked_means"]:
+                writer.writerow([item["group"], item["mean"], item["dmrt_group"]])
+            writer.writerow([])
+            writer.writerow(["MSE", dmrt["mse"]])
+            writer.writerow(["SE", dmrt["se"]])
+            writer.writerow(["df (within)", dmrt["df_within"]])
+
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=statistik_{input.parameter_name.replace(' ', '_')}.csv"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ===================== IMPORT DATA FROM CSV =====================
+
+@api_router.post("/research-data/import-csv")
+async def import_research_data_csv(file: UploadFile = File(...)):
+    """Import research data from CSV. Expected format:
+    Row 1: Parameter name
+    Row 2: Unit
+    Row 3: Header (Ulangan, F1, F2, F3)
+    Row 4+: Data values
+    """
+    try:
+        content = await file.read()
+        text = content.decode("utf-8")
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+
+        if len(rows) < 4:
+            raise HTTPException(status_code=400, detail="CSV harus memiliki minimal 4 baris (parameter, satuan, header, data)")
+
+        parameter = rows[0][0].strip() if rows[0] else "Parameter"
+        unit = rows[1][0].strip() if rows[1] else "%"
+        headers = [h.strip() for h in rows[2] if h.strip()]
+        
+        # Remove "Ulangan" or first column header
+        group_names = headers[1:] if len(headers) > 1 else headers
+
+        data = {}
+        for name in group_names:
+            data[name] = []
+
+        for row in rows[3:]:
+            if not any(cell.strip() for cell in row):
+                continue
+            for i, name in enumerate(group_names):
+                col_idx = i + 1
+                if col_idx < len(row) and row[col_idx].strip():
+                    try:
+                        data[name].append(float(row[col_idx].strip()))
+                    except ValueError:
+                        pass
+
+        # Validate
+        if not any(len(v) > 0 for v in data.values()):
+            raise HTTPException(status_code=400, detail="Tidak ada data numerik valid ditemukan dalam CSV")
+
+        # Save to DB
+        research_data = ResearchData(parameter=parameter, unit=unit, data=data)
+        await db.research_data.insert_one(research_data.model_dump())
+
+        return {
+            "status": "success",
+            "parameter": parameter,
+            "unit": unit,
+            "groups_imported": {k: len(v) for k, v in data.items()},
+            "id": research_data.id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"CSV import error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Gagal mengimpor CSV: {str(e)}")
 
 # Include the router
 app.include_router(api_router)

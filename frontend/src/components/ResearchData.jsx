@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { Plus, Trash2, Database, BarChart3 } from "lucide-react";
+import { Plus, Trash2, Database, Upload } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -13,6 +13,8 @@ const PARAMETERS = [
 export default function ResearchData() {
   const [dataList, setDataList] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [importStatus, setImportStatus] = useState(null);
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     parameter: PARAMETERS[0],
     unit: "%",
@@ -84,6 +86,24 @@ export default function ResearchData() {
     }
   };
 
+  const handleCSVImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    setImportStatus(null);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await axios.post(`${API}/research-data/import-csv`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setImportStatus({ type: "success", message: `Berhasil mengimpor data "${res.data.parameter}"` });
+      fetchData();
+    } catch (e) {
+      setImportStatus({ type: "error", message: e.response?.data?.detail || "Gagal mengimpor CSV" });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
     <div className="p-8 max-w-5xl mx-auto" data-testid="research-data-page">
       <div className="flex items-center justify-between mb-6">
@@ -93,14 +113,45 @@ export default function ResearchData() {
           </h1>
           <p className="text-sm text-[#5C605A] mt-1">Kelola data fisikokimia bubur instan pegagan</p>
         </div>
-        <button
-          data-testid="add-data-button"
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#4A6B46] text-white text-sm font-medium hover:bg-[#3C5739] transition-all hover:-translate-y-[1px]"
-        >
-          <Plus className="w-4 h-4" /> Tambah Data
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleCSVImport}
+            className="hidden"
+            data-testid="csv-file-input"
+          />
+          <button
+            data-testid="import-csv-button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 rounded-md border border-[#E2E5DE] text-sm text-[#5C605A] hover:bg-[#F0F2ED] transition-colors"
+          >
+            <Upload className="w-4 h-4" /> Import CSV
+          </button>
+          <button
+            data-testid="add-data-button"
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#4A6B46] text-white text-sm font-medium hover:bg-[#3C5739] transition-all hover:-translate-y-[1px]"
+          >
+            <Plus className="w-4 h-4" /> Tambah Data
+          </button>
+        </div>
       </div>
+
+      {/* Import Status */}
+      {importStatus && (
+        <div
+          className={`mb-4 p-3 rounded-md text-sm ${
+            importStatus.type === "success"
+              ? "bg-green-50 border border-green-200 text-green-700"
+              : "bg-red-50 border border-red-200 text-red-700"
+          }`}
+          data-testid="import-status"
+        >
+          {importStatus.message}
+        </div>
+      )}
 
       {/* Add Form */}
       {showForm && (
